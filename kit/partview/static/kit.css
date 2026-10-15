@@ -1,0 +1,16 @@
+/* partview kit: the marks list, the numbers over the marks */
+.dv-head { color:#fff; font-weight:600; font-size:12px; margin:6px 0 2px; }
+.dv-marks div { cursor:pointer; padding:1px 0; }
+.dv-marks div.dv-head { cursor:default; }
+.dv-marks div:hover { color:#fff; }
+.dv-marks b { display:inline-block; min-width:18px; text-align:center; color:#16181c; background:#ff5fd2;
+              border-radius:9px; margin-right:6px; font-size:11px; }
+.dv-marks .note { color:#8a8f98; }
+.dv-tag { position:fixed; z-index:1; pointer-events:none; transform:translate(-50%, -150%);
+          color:#16181c; background:#ff5fd2; border-radius:9px; padding:0 6px; font:600 11px sans-serif; }
+.dv-marks div.away { color:#6f747d; cursor:default; }
+.dv-marks div.dv-head { cursor:pointer; }
+.dv-marks div.on { color:#fff; background:rgba(255,95,210,.18); border-radius:4px; }
+.dv-marks { max-height:42vh; overflow:auto; }
+.dv-screw { position:fixed; z-index:1; pointer-events:none; transform:translate(-50%, 8px); white-space:nowrap;
+            color:#16181c; background:#9fb7d6; border-radius:3px; padding:0 4px; font:600 10px sans-serif; opacity:.92; }

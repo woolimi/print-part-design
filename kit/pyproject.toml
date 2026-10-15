@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "partview"
+version = "0.2.0"
+description = "What every browser design viewer shares: the server's common routes and the page's picking, marks and screws."
+requires-python = ">=3.10"
+
+[tool.setuptools]
+packages = ["partview"]
+
+[tool.setuptools.package-data]
+partview = ["static/*"]
