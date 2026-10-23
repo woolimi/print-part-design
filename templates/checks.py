@@ -9,6 +9,7 @@ rebuild runs them again:
     faults += fits_bed("body", body, SETTINGS.bed)
     faults += apart("body", body, "lid", lid, SETTINGS.min_gap)
     faults += slides_in("servo", servo, [body], way=(0, 0, -1))
+    faults += tool_reaches("lid screw", seat, (0, 0, -1), 3.8, 6, 1.5, [body, lid])
     faults += no_worse("servo in body", overlap(servo, body), SETTINGS.reference["servo in body"])
     for f in faults:
         print("FAIL", f)
@@ -93,6 +94,65 @@ def slides_in(name: str, moving: m.Manifold, placed: list[m.Manifold], way,
         return []
     return [f"{name}: meets a part {hits[0]:.1f}-{hits[-1]:.1f} mm before its place, "
             f"going in along {tuple(round(float(c), 3) for c in way)}"]
+
+
+def turned(part: m.Manifold, pivot, axis, deg: float) -> m.Manifold:
+    """`part` turned `deg` degrees about the line through `pivot` along `axis` (right hand)."""
+    k = np.asarray(axis, float)
+    k = k / np.linalg.norm(k)
+    a = np.radians(deg)
+    kx = np.array([[0, -k[2], k[1]], [k[2], 0, -k[0]], [-k[1], k[0], 0]])
+    r = np.eye(3) + np.sin(a) * kx + (1 - np.cos(a)) * kx @ kx
+    p = np.asarray(pivot, float)
+    return part.transform(np.column_stack([r, p - r @ p]))
+
+
+def turns_in(name: str, moving: m.Manifold, placed: list[m.Manifold], pivot, axis,
+             start: float, end: float, allow: float = TOUCH, step_deg: float = 2.0) -> list[str]:
+    """`moving`, drawn in its place at 0 deg, turns about its joint from `start` to `end`
+    degrees without meeting a part in `placed`.
+
+    For a part that only goes in with a joint bent: turn the joint (0 -> bent), slide the
+    part in at the bent angle (slides_in on `turned(...)`), then turn back (bent -> 0).
+    """
+    n = max(1, int(np.ceil(abs(end - start) / step_deg)))
+    for i in range(1, n + 1):
+        deg = start + (end - start) * i / n
+        s = turned(moving, pivot, axis, deg)
+        for p in placed:
+            v = overlap(s, p)
+            if v > allow:
+                return [f"{name}: meets a part at {deg:.0f} deg turning {start:.0f} -> {end:.0f} ({v:.2f} mm3)"]
+    return []
+
+
+def tool_reaches(name: str, seat, tip_way, head_d: float, length: float, key_d: float,
+                 placed: list[m.Manifold], reach: float = 60.0, lead: float = 5.0,
+                 skin: float = 0.1) -> list[str]:
+    """A screw whose head sits at `seat`, pointing along `tip_way`, can be driven once the
+    parts in `placed` are in: a head-wide path for the screw's `length` plus `lead` (it goes
+    in straight that far; before that it can come in tilted), then a hex key `key_d` across
+    flats for `reach` mm, are both clear of them.
+
+    Overlap thinner than `skin` along the screw is a membrane left in the model that the
+    printer won't lay down (less than half a layer), so it is not counted.
+    """
+    out = -np.asarray(tip_way, float)
+    out = out / np.linalg.norm(out)
+    a = np.cross(out, (1, 0, 0) if abs(out[0]) < 0.9 else (0, 1, 0))
+    a = a / np.linalg.norm(a)
+    frame = np.column_stack([a, np.cross(out, a), out, np.asarray(seat, float) + out * 0.2])
+    key_r = key_d / np.sqrt(3)                       # across corners of the hex
+    path = (m.Manifold.cylinder(length + lead, head_d / 2, head_d / 2, 24)
+            + m.Manifold.cylinder(reach, key_r, key_r, 12)).transform(frame)
+    for p in placed:
+        hit = path ^ p
+        if hit.volume() <= TOUCH:
+            continue
+        x0, y0, z0, x1, y1, z1 = hit.bounding_box()
+        if abs(np.dot((x1 - x0, y1 - y0, z1 - z0), out)) >= skin:
+            return [f"{name}: the way in for the screw or its key is blocked ({hit.volume():.2f} mm3)"]
+    return []
 
 
 def no_worse(what: str, value: float, baseline: float, slack: float = TOUCH) -> list[str]:
