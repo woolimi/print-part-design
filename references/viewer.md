@@ -49,7 +49,7 @@
 | 슬라이더 | `kind: "live"`(조립 때 정하는 값, 페이지가 바로 움직임) / `"cut"`(부품에 새겨지는 값, 저장 전까지 preview). `#stale` 줄이 둘을 구분해 알려 준다 |
 | save & rebuild | 포즈 yaml 의 **숫자만** 정규식으로 바꿔 주석을 보존 → 빌드 실행(venv python) → 실패하면 yaml 을 원상복구하고 한 번 더 빌드해 실패한 빌드가 써 둔 부품도 되돌린다. 로그 창에 출력. save 는 빌드된 포즈가 슬라이더에 올라온 뒤에만 켜진다(assembly.json 이 없으면 바로 켜짐) |
 | revert | 빌드된 포즈로 슬라이더 복귀 |
-| export STEP | `POST /step` → `export_step.py` 실행 → 로그 창에 결과. `step/<부품>.step` 과, 이름 붙은 부품이 assembly.json 대로 배치된 `step/assembly.step` |
+| export STEP | `POST /step` → `export_step.py` 실행 → 로그 창에 결과. `step/<부품>.step` 과, 이름 붙은 부품이 assembly.json 대로 배치된 `step/assembly.step`. 부품마다 `PARTS` 의 뷰어 색이 STEP 색으로 들어간다 |
 | 디버그 핸들 | `window.__controls/__camera/__scene/__THREE/__parts`. Playwright 가 시점을 옮기고 상태를 읽는다 |
 | 서버 공통 route (`KitHandler`) | `/kit/<file>`, `/marks`, `/screws`, `/favicon.ico`. 뷰어 Handler 는 `KitHandler` 를 상속하고 `do_GET` 첫 줄에서 `if self.kit(path): return`. 응답은 `self.send_body(body, ctype, status)` |
 | 테마 | 배경 `#16181c`, 글자 `#cfd2d8`, 버튼 `#2a2d33`/`#3a3e45`, 축 x `#e05252` y `#3ec46d` z `#5277e0`, probe `#8fb4e8`, 강조 노랑 `#f2e14c` |

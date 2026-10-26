@@ -4,7 +4,8 @@
 Each part's STL becomes a solid: its triangles are sewn shut, then triangles
 lying in one plane are merged back into one face, so a box comes out as six
 faces and only curved surfaces stay faceted. Writes one STEP per part and an
-assembly STEP with every part named and placed as assembly.json places it.
+assembly STEP with every part named and placed as assembly.json places it,
+each in the colour the view draws it.
 
     .venv/bin/python scripts/export_step.py      # step/<part>.step, step/assembly.step
 
@@ -98,15 +99,39 @@ def quiet():
         os.close(null)
 
 
-def write_step(shape_or_doc, path: Path) -> None:
+def colour(hex_rgb: str):
+    """'#rrggbb' as the view's page takes it -> an OCCT colour."""
+    from OCP.Quantity import Quantity_Color, Quantity_TOC_sRGB
+    r, g, b = (int(hex_rgb[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    return Quantity_Color(r, g, b, Quantity_TOC_sRGB)
+
+
+def new_doc():
+    from OCP.TCollection import TCollection_ExtendedString
+    from OCP.TDocStd import TDocStd_Document
+    return TDocStd_Document(TCollection_ExtendedString("XmlOcaf"))
+
+
+def add_part(doc, shape, name: str, hex_rgb: str):
+    """The shape into the document, named and coloured; returns its label."""
+    from OCP.TCollection import TCollection_ExtendedString
+    from OCP.TDataStd import TDataStd_Name
+    from OCP.XCAFDoc import XCAFDoc_ColorGen, XCAFDoc_DocumentTool
+    label = XCAFDoc_DocumentTool.ShapeTool_s(doc.Main()).AddShape(shape, False)
+    TDataStd_Name.Set_s(label, TCollection_ExtendedString(name))
+    XCAFDoc_DocumentTool.ColorTool_s(doc.Main()).SetColor(label, colour(hex_rgb), XCAFDoc_ColorGen)
+    return label
+
+
+def write_step(doc, path: Path) -> None:
     from OCP.IFSelect import IFSelect_RetDone
     from OCP.Interface import Interface_Static
     from OCP.STEPCAFControl import STEPCAFControl_Writer
-    from OCP.STEPControl import STEPControl_AsIs, STEPControl_Writer
+    from OCP.STEPControl import STEPControl_AsIs
     Interface_Static.SetCVal_s("write.step.unit", "MM")
-    w = STEPCAFControl_Writer() if hasattr(shape_or_doc, "Main") else STEPControl_Writer()
+    w = STEPCAFControl_Writer()
     with quiet():
-        w.Transfer(shape_or_doc, STEPControl_AsIs)
+        w.Transfer(doc, STEPControl_AsIs)
     with quiet():
         done = w.Write(str(path))
     if done != IFSelect_RetDone:
@@ -116,25 +141,25 @@ def write_step(shape_or_doc, path: Path) -> None:
 def main() -> None:
     from OCP.TCollection import TCollection_ExtendedString
     from OCP.TDataStd import TDataStd_Name
-    from OCP.TDocStd import TDocStd_Document
     from OCP.TopLoc import TopLoc_Location
     from OCP.XCAFDoc import XCAFDoc_DocumentTool
 
     OUT.mkdir(exist_ok=True)
     groups = json.loads(ASSEMBLY.read_text()).get("groups", {}) if ASSEMBLY.is_file() else {}
-    doc = TDocStd_Document(TCollection_ExtendedString("XmlOcaf"))
+    doc = new_doc()
     tool = XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
     top = tool.NewShape()
     TDataStd_Name.Set_s(top, TCollection_ExtendedString(SETTINGS.title))
-    for name, (stl, _, group) in PARTS.items():
+    for name, (stl, hex_rgb, group) in PARTS.items():
         if not stl.is_file():
             print(f"  {name}: no {stl.name}, skipped")
             continue
         tris = read_stl(stl)
         shape = solid_from_triangles(tris)
-        write_step(shape, OUT / f"{name}.step")
-        label = tool.AddShape(shape, False)
-        TDataStd_Name.Set_s(label, TCollection_ExtendedString(name))
+        one = new_doc()
+        add_part(one, shape, name, hex_rgb)
+        write_step(one, OUT / f"{name}.step")
+        label = add_part(doc, shape, name, hex_rgb)
         loc = TopLoc_Location(placement(groups[group])) if group in groups else TopLoc_Location()
         comp = tool.AddComponent(top, label, loc)
         TDataStd_Name.Set_s(comp, TCollection_ExtendedString(name))
