@@ -42,6 +42,7 @@
 | 자동 새로고침 | 1초마다 `/mtimes` 를 확인해 바뀐 STL 만 다시 로드하고, `assembly` 가 바뀌면 포즈를 다시 적용. 하단 오른쪽에 "X reloaded 시각" |
 | 외곽선 | `EdgesGeometry(geo, 25)` → `LineSegments2`, 공유 `LineMaterial`(resolution 은 매 프레임 갱신). outlines 체크박스 |
 | 부품 표시 | 부품마다 체크박스. 숨기면 트리에서 빼서 probe 가 못 맞힌다. 체크박스를 담는 `#show` 는 `display:contents` 라 시점 버튼 줄에 가로로 놓인다 |
+| 반투명 부품 | `PARTS` 항목의 네 번째 값이 불투명도다(생략하면 1). 1 미만이면 `transparent` + `depthWrite` 끔으로 그려 뒤가 비친다. 기준 부피(허용 범위 상자)나 주변 가구(책상)처럼 부품을 가리면 안 되는 것에 쓴다 |
 | 시점 | iso / front(+x) / left(+y) / top 버튼. 매 프레임 `view (카메라) -> (타깃)` 줄이 떠서 스크린샷만으로 시점을 알 수 있다 |
 | 점·면 선택 (kit `picker`) | 클릭(5 px 이상 움직이면 orbit 으로 봄) → 노란 점, `probe <부품> (x,y,z) mm \| in its own frame (…)`. 더블클릭 → 그 면을 파랗게 칠하고 `face <부품> 넓이 mm2, flat/curved, normal, n.p \| box … in its own frame`. 평면은 0.5° 안으로 이어진 삼각형, 곡면(구멍·라운드)은 가는 띠 facet 끼리만 이어서 통째로 고른다. 점·면은 부품에 붙어 슬라이더로 움직여도 따라간다. 읽은 줄을 클릭하면 클립보드로 복사된다(초록 깜빡임) |
 | marks (kit `marks`) | `SETTINGS.marks`(marks.json, 커밋 안 함)의 `{part, at, box?, label, note?, view?, from?, faces?}` 를 부품에 분홍 점·상자·번호로 붙인다. 좌표는 부품 STL frame mm 다. 가려도 보이고 화면상 크기가 일정하다. 목록을 클릭하면 그 부품만 진하게 남고(나머지 반투명, Esc 로 해제), 카메라는 `from`(부품 frame 방향)에 가장 가까우면서 부품에 막히지 않는 방향에서 `view` mm 거리로 간다. `faces`(부품 frame 방향)가 있으면 상자 안에서 그 방향 45° 이내를 향하는 면을 분홍으로 칠해 가려도 보이게 한다. 포켓 천장·턱 밑처럼 겉에서 안 보이는 면용이고, overhang 이면 출력 down 방향을 준다. 파일이 바뀌면 mtimes 확인으로 다시 그린다. 다른 뷰어의 부품을 가리키는 mark 는 "+N" 으로만 센다. 스크립트·Claude 가 "여기"를 사용자 화면에 보여 줄 때 쓴다 |

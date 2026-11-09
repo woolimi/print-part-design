@@ -29,8 +29,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from config import SETTINGS  # noqa: E402
 from partview import KitHandler, mtime  # noqa: E402
 
-# part -> (STL, colour, the group it hangs on in the page). A group other than
-# "root" is placed by the page from assembly.json (see applyAssembly).
+# part -> (STL, colour, the group it hangs on in the page[, opacity]). A group
+# other than "root" is placed by the page from assembly.json (see
+# applyAssembly). An opacity under 1 draws the part see-through: a reference
+# volume, or what stands around the parts.
 PARTS = {
     "base": (SETTINGS.print / "base.stl", "#d97a3d", "root"),
     "arm": (SETTINGS.print / "arm.stl", "#5b8fd4", "root"),
@@ -175,7 +177,7 @@ for (const p of Object.values(PARTS)) if (!groups[p.group]) {
   groups[p.group] = new THREE.Group(); groups[p.group].matrixAutoUpdate = false; root.add(groups[p.group]);
 }
 const parts = Object.fromEntries(Object.entries(PARTS).map(([n, p]) =>
-  [n, {holder: groups[p.group], color: new THREE.Color(p.color), mesh: null}]));
+  [n, {holder: groups[p.group], color: new THREE.Color(p.color), opacity: p.opacity, mesh: null}]));
 const loader = new STLLoader();
 const edgeMat = new LineMaterial({color: 0x0d0e11, linewidth: 2.0});
 edgeMat.resolution.set(innerWidth, innerHeight);
@@ -185,7 +187,9 @@ function load(name) {
   if (!p) return;                          // a file the page does not draw
   loader.load(`/mesh/${name}?t=${Date.now()}`, geo => {
     geo.computeVertexNormals();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color: p.color, roughness: 0.6, metalness: 0.05}));
+    const see = p.opacity < 1;
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color: p.color, roughness: 0.6, metalness: 0.05,
+      transparent: see, opacity: p.opacity, depthWrite: !see}));
     const eg = new THREE.EdgesGeometry(geo, 25);
     const edges = new LineSegments2(new LineSegmentsGeometry().setPositions(Array.from(eg.attributes.position.array)), edgeMat);
     eg.dispose();
@@ -358,7 +362,8 @@ class Handler(KitHandler):
             # filled per request, so the page never lags the parts table
             page = (PAGE.replace("__TITLE__", SETTINGS.title)
                     .replace("__STEP__", "true" if EXPORT.is_file() else "false")
-                    .replace("__PARTS__", json.dumps({n: {"color": c, "group": g} for n, (_, c, g) in PARTS.items()}))
+                    .replace("__PARTS__", json.dumps({n: {"color": v[1], "group": v[2], "opacity": v[3] if len(v) > 3 else 1}
+                                                      for n, v in PARTS.items()}))
                     .replace("__SLIDERS__", json.dumps(SLIDERS if POSE.is_file() and BUILD.is_file() else [])))
             self.send_body(page.encode(), "text/html; charset=utf-8")
         elif path == "/assembly":
@@ -367,7 +372,7 @@ class Handler(KitHandler):
                 return
             self.send_body(ASSEMBLY.read_bytes(), "application/json")
         elif path == "/mtimes":
-            files = ({n: f for n, (f, _, _) in PARTS.items()}
+            files = ({n: v[0] for n, v in PARTS.items()}
                      | {"assembly": ASSEMBLY, "marks": SETTINGS.marks, "screws": SETTINGS.screws})
             body = json.dumps({k: mtime(p) for k, p in files.items()}).encode()
             self.send_body(body, "application/json")
