@@ -62,7 +62,7 @@ def solid_from_triangles(tris: np.ndarray):
     ex = TopExp_Explorer(sew.SewedShape(), TopAbs_SHELL)
     made = BRepBuilderAPI_MakeSolid()
     while ex.More():
-        made.Add(TopoDS.Shell_s(ex.Current()))
+        made.Add(getattr(TopoDS, "Shell_s", None) and TopoDS.Shell_s(ex.Current()) or TopoDS.Shell(ex.Current()))
         ex.Next()
     # booleans leave slivers a hair wide; sewn at SEW_TOL they can fold, and
     # the fixer mends that
@@ -150,7 +150,8 @@ def main() -> None:
     tool = XCAFDoc_DocumentTool.ShapeTool_s(doc.Main())
     top = tool.NewShape()
     TDataStd_Name.Set_s(top, TCollection_ExtendedString(SETTINGS.title))
-    for name, (stl, hex_rgb, group) in PARTS.items():
+    for name, entry in PARTS.items():
+        stl, hex_rgb, group = entry[:3]          # a fourth item, the view's opacity, is not for CAD
         if not stl.is_file():
             print(f"  {name}: no {stl.name}, skipped")
             continue
